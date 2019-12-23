@@ -7,7 +7,9 @@ Function WriteDebug{
     [CmdletBinding()]
     Param ([Parameter(Mandatory=$true)][string]$Value)
     Process{
+        #If ($Debug) {
         Write-host $Value
+        #}
     }
 }
 
@@ -24,9 +26,13 @@ Function ActivateLogfile(){
 
 Function WriteLog{
     [CmdletBinding()]
-    Param ([Parameter(Mandatory=$true)][string]$LineValue)
+    Param (
+        [Parameter(Mandatory=$true)][string]$Value,
+        [Parameter(Mandatory=$true)][string]$Path
+    )
     Process{
-        Add-Content -Path $LogFilePath -Value $LineValue
+        write-host $Value
+        Add-Content -Path $Path -Value $Value
     }
 }
 
@@ -36,7 +42,7 @@ Function ReadGuestUsers{
         WriteDebug -Value "No Guest Users Found"
         return $false
     }else{
-        WriteDebug - Value ("Found " + $GuestUsers.count + " guest users")
+        WriteDebug -Value ("Found " + $GuestUsers.count + " AAD guest users")
         return $GuestUsers
     }
 }
@@ -75,13 +81,14 @@ Function CreateUser{
         [parameter()]
             $UserObject,
         [parameter()]
+            $SamAccountName,
+        [parameter()]
             [SecureString] $Password
 
     ) 
     #NeedToGenerateSamAccountName and validate uniqueness
-    [SecureString]$Password = GeneratePassword
     $GeneratedSamAccountName=GenerateSamAccountName
-    New-ADUser -Name $UserObject.DisplayName -SamAccountName $GeneratedSamAccountName -UserPrincipalName $UserObject.UserPrincipalName -Path $OU -AccountPassword $Password -Enabled $true
+    New-ADUser -Name $UserObject.DisplayName -SamAccountName $SamAccountName -UserPrincipalName $UserObject.UserPrincipalName -Path $OU -AccountPassword $Password -Enabled $true
 }
 
 
@@ -90,7 +97,7 @@ Function DeleteUser{
         [parameter()]
             $UserObject
     ) 
-    $User=Remove-ADUser -Identity $UserObject.DistinguishedName
+    $User=Remove-ADUser -Identity $UserObject.DistinguishedName -Confirm:$false
 }
 
 Function GenerateSamAccountName{
@@ -126,7 +133,7 @@ Function GeneratePassword2{
         $rawPass[$i] = $CharSet[$bytes[$i]%$CharSet.Length]
     }
     $Return=(-join $rawPass)
-    WriteDebug -Value (-join $rawPass)
+    #WriteDebug -Value (-join $rawPass)
     Return ( $Return)
 }
 Function GetADGuestUsers{
@@ -150,7 +157,7 @@ Function GetADGuestUsers{
         WriteDebug -Value "No existing users found"
         return $false
     }else{
-        WriteDebug -Value ("returning " + $ADUsers.count + " existing AD Users")
+        WriteDebug -Value ("Found " + $ADUsers.count + " existing AD Users")
         return $ADUsers
     }
 }
@@ -162,7 +169,7 @@ Function SearchExistingUser{
         [parameter()]
         $Domain,
         [parameter()]
-        $UserUPN,
+        $samAccountName,
         [parameter()]
         $GC
     )   
@@ -172,7 +179,7 @@ Function SearchExistingUser{
             "*-AD*:Server" = ($domain + ":3268")
         }
     }
-    [array]$Results=Get-ADUser -Filter "UserPrincipalName -eq '$($UserUPN)'"
+    [array]$Results=Get-ADUser -Filter {samAccountName -like $samAccountName}
     If ($Results.count -eq 0) {
         WriteDebug -Value "No users found - need to create"
         return $false
@@ -217,3 +224,30 @@ Function SamAccountNameCheck{
 Function AZConnect {
     Connect-AzureAD
 }
+
+Function LoadModule
+{
+    param (
+        [parameter(Mandatory = $true)][string] $name
+    )
+
+    $retVal = $true
+    if (!(Get-Module -Name $name))
+    {
+        $retVal = Get-Module -ListAvailable | where { $_.Name -eq $name }
+        if ($retVal)
+        {
+            try
+            {
+                Import-Module $name -ErrorAction SilentlyContinue
+            }
+            catch
+            {
+                $retVal = $false
+            }
+        }
+    }
+    return $retVal
+}
+
+
