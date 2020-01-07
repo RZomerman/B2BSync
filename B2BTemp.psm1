@@ -88,7 +88,7 @@ Function CreateUser{
     ) 
     #NeedToGenerateSamAccountName and validate uniqueness
     $GeneratedSamAccountName=GenerateSamAccountName
-    New-ADUser -Name $UserObject.DisplayName -SamAccountName $SamAccountName -UserPrincipalName $UserObject.UserPrincipalName -Path $OU -AccountPassword $Password -Enabled $true
+    New-ADUser -Name $UserObject.DisplayName -SamAccountName $SamAccountName -UserPrincipalName $UserObject.UserPrincipalName -Path $OU -AccountPassword $Password -Enabled $true -SmartcardLogonRequired $true
 }
 
 
